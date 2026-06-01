@@ -4,9 +4,9 @@
 
 Code de l'application mobile developpee avec Expo, React Native et TypeScript.
 
-Cette application permet aux adherents du club Lyon Palme de consulter les
-billets du blog, de lire les commentaires associes, et de commenter les billets
-apres connexion.
+Cette application est un client mobile du blog Lyon Palme. Elle permet aux
+adherents du club de consulter les billets, de lire les commentaires associes
+apres connexion, et de commenter les billets.
 
 Elle communique avec le webservice Laravel `API_B2LP`.
 
@@ -25,7 +25,9 @@ Elle permet :
 - a l'administrateur de creer, modifier et supprimer des billets ;
 - a l'administrateur de supprimer des commentaires.
 
-La gestion des donnees est faite par l'API Laravel.
+La gestion des donnees est faite par l'API Laravel. Le mobile se charge surtout
+de l'affichage, de la navigation, des formulaires et de la conservation de la
+session utilisateur.
 
 ## 2. Technologies utilisees
 
@@ -66,7 +68,7 @@ EXPO_PUBLIC_API_BASE_URL=https://monblog.cherifhammani.fr/api
 Si cette variable n'est pas definie, l'application utilise deja cette URL par
 defaut dans `components/types.ts`.
 
-## 4. Lancement en local
+## 4. Lancement en developpement
 
 Demarrer Expo avec un tunnel, pratique pour tester sur telephone :
 
@@ -102,7 +104,77 @@ npx tsc --noEmit
 npx expo install --check
 ```
 
-## 6. Fonctionnement general
+## 6. Application installable
+
+L'application React Native est un client lourd : l'objectif final est de pouvoir
+l'installer sur telephone.
+
+Pendant le developpement, Expo Go suffit pour tester rapidement. Pour fournir
+une application installable, il faut generer un fichier de build.
+
+### Android
+
+Sur Android, on peut generer une APK installable.
+
+Exemple avec EAS Build :
+
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure
+eas build --platform android --profile preview
+```
+
+Exemple de configuration `eas.json` pour obtenir une APK :
+
+```json
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
+```
+
+Apres la build, Expo fournit un lien de telechargement. Sur Android, il est
+possible de telecharger le fichier `.apk`, puis de l'installer sur le telephone
+apres confirmation de securite.
+
+### iPhone
+
+Sur iPhone, il n'y a pas d'APK. Le format iOS est plutot `.ipa`.
+
+La solution gratuite la plus simple pour une demonstration est Expo Go :
+
+- installation gratuite depuis l'App Store ;
+- scan du QR code ;
+- aucun compte Apple Developer obligatoire.
+
+Pour une vraie application iPhone installable sans Expo Go, les solutions
+propres passent generalement par :
+
+- TestFlight ;
+- l'App Store ;
+- une distribution interne iOS.
+
+Ces solutions demandent normalement un compte Apple Developer. Avec un Mac et
+Xcode, il est possible d'installer une app sur son propre iPhone avec un Apple
+ID gratuit, mais ce n'est pas une solution de distribution propre : c'est limite
+et temporaire.
+
+Pour un projet de jury, la solution conseillee est donc :
+
+```txt
+Android : APK avec EAS Build
+iPhone  : Expo Go pour la demonstration gratuite
+iPhone installable reel : Apple Developer + TestFlight ou distribution interne
+```
+
+## 7. Fonctionnement general
 
 Le fichier `components/api.ts` centralise tous les appels vers l'API Laravel.
 
@@ -124,7 +196,14 @@ Sur mobile, on n'utilise pas `localStorage` ou `sessionStorage`.
 La session est stockee avec `AsyncStorage`, qui est l'equivalent adapte a React
 Native.
 
-## 7. Gestion des roles
+Le token recu lors de la connexion est envoye dans les requetes protegees avec
+l'en-tete HTTP suivant :
+
+```txt
+Authorization: Bearer <token>
+```
+
+## 8. Gestion des roles
 
 Visiteur :
 
@@ -151,7 +230,7 @@ Administrateur :
 Le vrai controle des droits est fait cote API Laravel.
 Le front gere surtout l'affichage et la navigation selon l'utilisateur connecte.
 
-## 8. Structure principale du projet
+## 9. Structure principale du projet
 
 ```txt
 app/
@@ -174,7 +253,132 @@ components/
   ui.tsx                            Couleurs, boutons et styles communs
 ```
 
-## 9. API utilisee
+## 10. Diagrammes de sequence
+
+### Consultation des billets par un visiteur
+
+```mermaid
+sequenceDiagram
+    actor Visiteur
+    participant App as Application mobile
+    participant API as API Laravel
+
+    Visiteur->>App: Ouvre l'application
+    App->>API: GET /api/billets
+    API-->>App: Liste des billets
+    App-->>Visiteur: Affiche les titres et contenus
+
+    Visiteur->>App: Clique sur un billet
+    App-->>Visiteur: Message "Connectez-vous ou inscrivez-vous"
+```
+
+### Connexion d'un adherent
+
+```mermaid
+sequenceDiagram
+    actor Adherent
+    participant App as Application mobile
+    participant API as API Laravel
+    participant Storage as AsyncStorage
+
+    Adherent->>App: Saisit email et mot de passe
+    App->>API: POST /api/login
+    API-->>App: Token + utilisateur
+    App->>Storage: Enregistre la session
+    App-->>Adherent: Retour a la liste des billets
+```
+
+### Lecture et ajout d'un commentaire
+
+```mermaid
+sequenceDiagram
+    actor Adherent
+    participant App as Application mobile
+    participant Storage as AsyncStorage
+    participant API as API Laravel
+
+    Adherent->>App: Clique sur "Lire les commentaires"
+    App->>Storage: Recupere le token
+    App->>API: GET /api/billets/{id} avec Bearer Token
+    API-->>App: Billet + commentaires
+    App-->>Adherent: Affiche les commentaires
+
+    Adherent->>App: Ecrit un commentaire
+    App->>Storage: Recupere le token
+    App->>API: POST /api/commentaires avec Bearer Token
+    API-->>App: Commentaire enregistre
+    App-->>Adherent: Message de confirmation
+```
+
+### Creation ou modification d'un billet par l'administrateur
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant App as Application mobile
+    participant Storage as AsyncStorage
+    participant API as API Laravel
+
+    Admin->>App: Ouvre le formulaire de billet
+    App->>Storage: Recupere le token
+    Admin->>App: Valide le formulaire
+    App->>API: POST/PATCH /api/billets avec Bearer Token
+    API-->>App: Billet enregistre
+    App-->>Admin: Retour au billet
+```
+
+### Suppression d'un billet par l'administrateur
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant App as Application mobile
+    participant Storage as AsyncStorage
+    participant API as API Laravel
+
+    Admin->>App: Clique sur "Supprimer" un billet
+    App->>App: Demande confirmation
+    App->>Storage: Recupere le token
+    App->>API: DELETE /api/billets/{id} avec Bearer Token
+    API-->>App: Suppression validee
+    App-->>Admin: Retour a la liste des billets
+```
+
+### Suppression d'un commentaire par l'administrateur
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant App as Application mobile
+    participant Storage as AsyncStorage
+    participant API as API Laravel
+
+    Admin->>App: Clique sur "Supprimer le commentaire"
+    App->>App: Demande confirmation
+    App->>Storage: Recupere le token
+    App->>API: DELETE /api/commentaires/{id} avec Bearer Token
+    API-->>App: Suppression validee
+    App-->>Admin: Liste des commentaires mise a jour
+```
+
+### Deconnexion
+
+```mermaid
+sequenceDiagram
+    actor Utilisateur
+    participant App as Application mobile
+    participant Storage as AsyncStorage
+    participant API as API Laravel
+
+    Utilisateur->>App: Clique sur "Deconnexion"
+    App->>Storage: Recupere le token
+    App->>API: POST /api/user/logout avec Bearer Token
+    API-->>App: Deconnexion validee
+    App->>Storage: Supprime la session locale
+    App-->>Utilisateur: Retour a la liste des billets
+```
+
+## 11. API utilisee
 
 L'application utilise le webservice Laravel suivant :
 
@@ -197,9 +401,19 @@ PATCH  /api/billets/{billet}
 DELETE /api/billets/{billet}
 ```
 
-Les routes d'administration necessitent un Bearer Token.
+Les routes suivantes necessitent un Bearer Token :
 
-## 10. Points importants React Native
+```txt
+GET    /api/billets/{id}
+POST   /api/user/logout
+POST   /api/commentaires
+DELETE /api/commentaires/{commentaire}
+POST   /api/billets
+PATCH  /api/billets/{billet}
+DELETE /api/billets/{billet}
+```
+
+## 12. Points importants React Native
 
 React Native ressemble a React, mais il y a quelques differences importantes :
 
@@ -214,7 +428,7 @@ React Native ressemble a React, mais il y a quelques differences importantes :
 - les images locales doivent etre importees avec `require()` ;
 - les appels API avec Axios fonctionnent comme dans React web.
 
-## 11. Tests et verification
+## 13. Tests et verification
 
 Avant de rendre ou presenter le projet, lancer :
 
@@ -229,7 +443,13 @@ Pour verifier que le bundle iOS se construit :
 npx expo export --platform ios
 ```
 
-## 12. Lien avec le webservice
+Pour verifier que le bundle Android se construit :
+
+```bash
+npx expo export --platform android
+```
+
+## 14. Lien avec le webservice
 
 Le front mobile depend du webservice Laravel `API_B2LP`.
 
