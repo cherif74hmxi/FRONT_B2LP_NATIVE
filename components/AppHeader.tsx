@@ -10,12 +10,21 @@ export default function AppHeader() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const userName = user?.nom ?? user?.name ?? user?.email;
 
+  function goToBillets() {
+    if (router.canDismiss()) {
+      router.dismissAll();
+      return;
+    }
+
+    router.replace("/");
+  }
+
   async function handleLogout() {
     setIsLoggingOut(true);
 
     try {
       await logout();
-      router.replace("/");
+      goToBillets();
     } finally {
       setIsLoggingOut(false);
     }
@@ -31,13 +40,13 @@ export default function AppHeader() {
           style={styles.logo}
         />
         <View style={styles.brandText}>
-          <Text style={styles.title}>B2LP</Text>
-          <Text style={styles.subtitle}>Le blog de Lyon Palme</Text>
+          <Text style={styles.appName}>B2LP</Text>
+          <Text style={styles.tagline}>Le blog de Lyon Palme</Text>
         </View>
       </View>
 
       {initialized && userName ? (
-        <Text style={styles.sessionText}>
+        <Text style={styles.userText}>
           Connecte en tant que {userName}
           {user?.role ? ` (${user.role})` : ""}
         </Text>
@@ -47,7 +56,7 @@ export default function AppHeader() {
         <ActionButton
           icon="newspaper-o"
           label="Billets"
-          onPress={() => router.replace("/")}
+          onPress={goToBillets}
           variant="ghost"
         />
 
@@ -55,7 +64,7 @@ export default function AppHeader() {
           <ActionButton
             icon="plus"
             label="Nouveau"
-            onPress={() => router.push("/admin/billets/new")}
+            onPress={() => router.navigate("/admin/billets/new")}
             variant="cyan"
           />
         ) : null}
@@ -73,13 +82,13 @@ export default function AppHeader() {
             <ActionButton
               icon="user-plus"
               label="Inscription"
-              onPress={() => router.push("/register")}
+              onPress={() => router.navigate("/register")}
               variant="cyan"
             />
             <ActionButton
               icon="sign-in"
               label="Connexion"
-              onPress={() => router.push("/login")}
+              onPress={() => router.navigate("/login")}
               variant="secondary"
             />
           </>
@@ -92,38 +101,38 @@ export default function AppHeader() {
 const styles = StyleSheet.create({
   header: {
     gap: 14,
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    paddingTop: 18,
-    backgroundColor: palette.surface,
-    borderBottomColor: palette.border,
     borderBottomWidth: 1,
+    borderBottomColor: palette.border,
+    backgroundColor: palette.surface,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 16,
   },
   brandRow: {
-    alignItems: "center",
     flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   logo: {
-    width: 124,
-    height: 38,
+    width: 128,
+    height: 42,
   },
   brandText: {
     flex: 1,
   },
-  title: {
+  appName: {
     color: palette.purple,
     fontSize: 24,
     fontWeight: "900",
   },
-  subtitle: {
+  tagline: {
+    marginTop: 2,
     color: palette.muted,
     fontSize: 14,
-    marginTop: 2,
   },
-  sessionText: {
+  userText: {
     color: palette.muted,
-    fontSize: 13,
+    fontSize: 12,
   },
   actions: {
     flexDirection: "row",

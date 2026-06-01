@@ -1,17 +1,17 @@
 import { useRouter } from "expo-router";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
-import { ActionButton, MessageBox, palette } from "@/components/ui";
+import { ActionButton, MessageBox, palette, sharedStyles } from "@/components/ui";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,13 +22,22 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userName = user?.nom ?? user?.name ?? user?.email;
 
+  function goToBillets() {
+    if (router.canDismiss()) {
+      router.dismissAll();
+      return;
+    }
+
+    router.replace("/");
+  }
+
   async function handleSubmit() {
     setErrorMessage(undefined);
     setIsSubmitting(true);
 
     try {
       await login(email.trim(), password);
-      router.replace("/");
+      goToBillets();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Connexion impossible");
     } finally {
@@ -39,31 +48,36 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.keyboard}
+      style={sharedStyles.screen}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={sharedStyles.scroll}
+        contentContainerStyle={sharedStyles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <AppHeader />
 
-        <View style={styles.panel}>
-          <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>
-            Connectez-vous pour commenter ou administrer les billets.
+        <View style={sharedStyles.pageBody}>
+          <Text style={sharedStyles.title}>Connexion</Text>
+          <Text style={sharedStyles.subtitle}>
+            Connectez-vous pour lire les commentaires ou administrer les billets.
           </Text>
 
           {initialized && isAuthenticated ? (
             <>
-              <MessageBox message={`Vous etes deja connecte${userName ? ` : ${userName}` : ""}.`} />
+              <MessageBox
+                message={`Vous etes deja connecte${userName ? ` : ${userName}` : ""}.`}
+              />
               <ActionButton
                 icon="newspaper-o"
                 label="Retour aux billets"
-                onPress={() => router.replace("/")}
+                onPress={goToBillets}
                 variant="secondary"
               />
             </>
           ) : (
             <>
-              <View style={styles.field}>
-                <Text style={styles.label}>Email</Text>
+              <FormField label="Email">
                 <TextInput
                   autoCapitalize="none"
                   autoComplete="email"
@@ -71,26 +85,27 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   onChangeText={setEmail}
                   placeholder="email@exemple.fr"
-                  style={styles.input}
+                  placeholderTextColor={palette.muted}
+                  style={sharedStyles.input}
                   value={email}
                 />
-              </View>
+              </FormField>
 
-              <View style={styles.field}>
-                <Text style={styles.label}>Mot de passe</Text>
+              <FormField label="Mot de passe">
                 <TextInput
                   autoComplete="current-password"
                   onChangeText={setPassword}
                   placeholder="Votre mot de passe"
+                  placeholderTextColor={palette.muted}
                   secureTextEntry
-                  style={styles.input}
+                  style={sharedStyles.input}
                   value={password}
                 />
-              </View>
+              </FormField>
 
               {errorMessage ? <MessageBox message={errorMessage} tone="error" /> : null}
 
-              <View style={styles.buttonRow}>
+              <View style={sharedStyles.actionsRow}>
                 <ActionButton
                   disabled={!email || !password || !initialized}
                   icon="sign-in"
@@ -101,7 +116,7 @@ export default function LoginScreen() {
                 <ActionButton
                   icon="user-plus"
                   label="Creer un compte"
-                  onPress={() => router.push("/register")}
+                  onPress={() => router.replace("/register")}
                   variant="ghost"
                 />
               </View>
@@ -113,51 +128,17 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  content: {
-    flexGrow: 1,
-    backgroundColor: palette.background,
-  },
-  panel: {
-    gap: 16,
-    padding: 18,
-  },
-  title: {
-    color: palette.cyan,
-    fontSize: 28,
-    fontWeight: "900",
-  },
-  subtitle: {
-    color: palette.muted,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  field: {
-    gap: 7,
-  },
-  label: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  input: {
-    minHeight: 46,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    color: palette.text,
-    fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-});
+function FormField({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <View style={sharedStyles.field}>
+      <Text style={sharedStyles.label}>{label}</Text>
+      {children}
+    </View>
+  );
+}

@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import AppHeader from "@/components/AppHeader";
+import { useAuth } from "@/components/AuthProvider";
 import { fetchBillets } from "@/components/api";
 import type { Billet } from "@/components/types";
 import {
@@ -17,12 +18,16 @@ import {
   formatDate,
   getBilletAuthorName,
   palette,
+  sharedStyles,
 } from "@/components/ui";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { authRequired } = useLocalSearchParams<{ authRequired?: string }>();
+  const { isAuthenticated } = useAuth();
   const [billets, setBillets] = useState<Billet[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [showAuthNotice, setShowAuthNotice] = useState(authRequired === "1");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -53,28 +58,56 @@ export default function HomeScreen() {
     }, [loadBillets]),
   );
 
+  useEffect(() => {
+    if (authRequired === "1") {
+      setShowAuthNotice(true);
+    }
+  }, [authRequired]);
+
+  function handleOpenBillet(billetId: number) {
+    if (!isAuthenticated) {
+      setShowAuthNotice(true);
+      return;
+    }
+
+    router.navigate({
+      pathname: "/billets/[id]",
+      params: { id: String(billetId) },
+    });
+  }
+
   return (
     <FlatList
+      style={sharedStyles.scroll}
       contentContainerStyle={styles.listContent}
       data={billets}
       keyExtractor={(item) => String(item.id)}
       ListHeaderComponent={
         <>
           <AppHeader />
-          <View style={styles.intro}>
-            <Text style={styles.title}>Liste des billets</Text>
-            <Text style={styles.subtitle}>
-              Consultez les actualites du club et les commentaires associes.
+          <View style={styles.headerText}>
+            <Text style={sharedStyles.title}>Liste des billets</Text>
+            <Text style={sharedStyles.subtitle}>
+              Consultez les actualites du club. Connectez-vous pour lire les
+              commentaires et participer.
             </Text>
+            {showAuthNotice && !isAuthenticated ? (
+              <MessageBox
+                message="Connectez-vous ou inscrivez-vous pour lire les commentaires d'un billet."
+                tone="warning"
+              />
+            ) : null}
           </View>
         </>
       }
       ListEmptyComponent={
-        <View style={styles.stateBlock}>
+        <View style={styles.emptyState}>
           {isLoading ? (
             <>
               <ActivityIndicator color={palette.cyan} />
-              <Text style={styles.loadingText}>Chargement des billets...</Text>
+              <Text style={styles.loadingText}>
+                Chargement des billets...
+              </Text>
             </>
           ) : errorMessage ? (
             <>
@@ -98,30 +131,61 @@ export default function HomeScreen() {
       onRefresh={() => loadBillets(true)}
       refreshing={isRefreshing}
       renderItem={({ item }) => (
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: "/billets/[id]",
-              params: { id: String(item.id) },
-            })
-          }
-          style={({ pressed }) => [styles.card, pressed ? styles.pressed : undefined]}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardText}>
-              <Text style={styles.cardTitle}>{item.Titre}</Text>
-              <Text style={styles.cardMeta}>
-                Cree le {formatDate(item.Date)} par {getBilletAuthorName(item.Auteur)}
-              </Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </View>
-          <Text numberOfLines={4} style={styles.cardContent}>
-            {item.Contenu}
-          </Text>
-        </Pressable>
+        <BilletCard
+          billet={item}
+          canOpenComments={isAuthenticated}
+          onOpen={() => handleOpenBillet(item.id)}
+        />
       )}
     />
+  );
+}
+
+type BilletCardProps = {
+  billet: Billet;
+  canOpenComments: boolean;
+  onOpen: () => void;
+};
+
+function BilletCard({
+  billet,
+  canOpenComments,
+  onOpen,
+}: BilletCardProps) {
+  const content = (
+    <>
+      <View style={styles.cardTitleBlock}>
+        <Text style={styles.cardTitle}>{billet.Titre}</Text>
+        <Text style={styles.cardMeta}>
+          Cree le {formatDate(billet.Date)} par{" "}
+          {getBilletAuthorName(billet.Auteur)}
+        </Text>
+      </View>
+
+      <Text style={styles.cardContent}>{billet.Contenu}</Text>
+
+      {canOpenComments ? (
+        <ActionButton
+          icon="comments"
+          label="Lire les commentaires"
+          onPress={onOpen}
+          variant="secondary"
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <Pressable
+      onPress={onOpen}
+      style={({ pressed }) => [
+        sharedStyles.card,
+        styles.listItem,
+        { opacity: pressed ? 0.74 : 1 },
+      ]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -130,26 +194,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 14,
     paddingBottom: 28,
-    backgroundColor: palette.background,
   },
-  intro: {
-    gap: 7,
-    paddingHorizontal: 18,
+  headerText: {
+    gap: 8,
+    paddingHorizontal: 16,
     paddingTop: 20,
   },
-  title: {
-    color: palette.cyan,
-    fontSize: 28,
-    fontWeight: "900",
-  },
-  subtitle: {
-    color: palette.muted,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  stateBlock: {
+  emptyState: {
     gap: 12,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 8,
   },
   loadingText: {
@@ -157,47 +210,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
   },
-  card: {
-    marginHorizontal: 18,
-    gap: 12,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    padding: 16,
+  listItem: {
+    marginHorizontal: 16,
   },
-  pressed: {
-    opacity: 0.74,
-  },
-  cardHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 12,
-  },
-  cardText: {
-    flex: 1,
-    gap: 5,
+  cardTitleBlock: {
+    gap: 4,
   },
   cardTitle: {
     color: palette.cyan,
     fontSize: 20,
     fontWeight: "900",
-    lineHeight: 25,
+    lineHeight: 28,
   },
   cardMeta: {
     color: palette.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  chevron: {
-    color: palette.purple,
-    fontSize: 32,
-    fontWeight: "500",
-    lineHeight: 34,
+    fontSize: 12,
+    lineHeight: 20,
   },
   cardContent: {
     color: palette.text,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
   },
 });

@@ -13,7 +13,7 @@ import { useAuth } from "./AuthProvider";
 import AppHeader from "./AppHeader";
 import { createBillet, updateBillet } from "./api";
 import type { Billet } from "./types";
-import { ActionButton, MessageBox, palette } from "./ui";
+import { ActionButton, MessageBox, palette, sharedStyles } from "./ui";
 
 type BilletEditorProps = {
   mode: "create" | "edit";
@@ -58,14 +58,16 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
       const savedBilletId = Number(savedBillet.id);
 
       if (mode === "create") {
-        if (Number.isFinite(savedBilletId) && savedBilletId > 0) {
-          router.replace({
-            pathname: "/billets/[id]",
-            params: { id: String(savedBilletId) },
-          });
-        } else {
-          router.replace("/");
-        }
+        router.replace(
+          Number.isFinite(savedBilletId) && savedBilletId > 0
+            ? { pathname: "/billets/[id]", params: { id: String(savedBilletId) } }
+            : "/",
+        );
+        return;
+      }
+
+      if (router.canGoBack()) {
+        router.back();
         return;
       }
 
@@ -80,6 +82,23 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleCancel() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (billet) {
+      router.replace({
+        pathname: "/billets/[id]",
+        params: { id: String(billet.id) },
+      });
+      return;
+    }
+
+    router.replace("/");
   }
 
   if (!initialized) {
@@ -97,7 +116,7 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
         <ActionButton
           icon="sign-in"
           label="Connexion"
-          onPress={() => router.push("/login")}
+          onPress={() => router.replace("/login")}
           variant="secondary"
         />
       </Screen>
@@ -118,61 +137,60 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.keyboard}
+      style={sharedStyles.screen}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        style={sharedStyles.scroll}
+        contentContainerStyle={sharedStyles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <AppHeader />
 
-        <View style={styles.form}>
-          <Text style={styles.screenTitle}>
+        <View style={sharedStyles.pageBody}>
+          <Text style={sharedStyles.title}>
             {mode === "create" ? "Nouveau billet" : "Modifier le billet"}
           </Text>
-          <Text style={styles.helpText}>
+          <Text style={sharedStyles.helperText}>
             Creation et modification reservees aux administrateurs.
           </Text>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Date</Text>
+          <FormField label="Date">
             <TextInput
               autoCapitalize="none"
               inputMode="numeric"
               onChangeText={setDate}
               placeholder="AAAA-MM-JJ"
-              style={styles.input}
+              placeholderTextColor={palette.muted}
+              style={sharedStyles.input}
               value={date}
             />
-          </View>
+          </FormField>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Titre</Text>
+          <FormField label="Titre">
             <TextInput
               onChangeText={setTitre}
               placeholder="Titre du billet"
-              style={styles.input}
+              placeholderTextColor={palette.muted}
+              style={sharedStyles.input}
               value={titre}
             />
-          </View>
+          </FormField>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Contenu</Text>
+          <FormField label="Contenu">
             <TextInput
               multiline
               onChangeText={setContenu}
               placeholder="Contenu du billet"
-              style={[styles.input, styles.textArea]}
+              placeholderTextColor={palette.muted}
+              style={[sharedStyles.input, styles.contentInput]}
               textAlignVertical="top"
               value={contenu}
             />
-          </View>
+          </FormField>
 
-          {errorMessage ? (
-            <MessageBox message={errorMessage} tone="error" />
-          ) : null}
+          {errorMessage ? <MessageBox message={errorMessage} tone="error" /> : null}
 
-          <View style={styles.buttonRow}>
+          <View style={sharedStyles.actionsRow}>
             <ActionButton
               disabled={!date || !titre || !contenu}
               icon="save"
@@ -183,14 +201,7 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
             <ActionButton
               icon="times"
               label="Annuler"
-              onPress={() =>
-                billet
-                  ? router.replace({
-                      pathname: "/billets/[id]",
-                      params: { id: String(billet.id) },
-                    })
-                  : router.replace("/")
-              }
+              onPress={handleCancel}
               variant="ghost"
             />
           </View>
@@ -200,63 +211,35 @@ export default function BilletEditor({ mode, billet }: BilletEditorProps) {
   );
 }
 
+function FormField({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <View style={sharedStyles.field}>
+      <Text style={sharedStyles.label}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
 function Screen({ children }: { children: ReactNode }) {
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView
+      style={sharedStyles.scroll}
+      contentContainerStyle={sharedStyles.scrollContent}
+    >
       <AppHeader />
-      <View style={styles.form}>{children}</View>
+      <View style={sharedStyles.pageBody}>{children}</View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  content: {
-    flexGrow: 1,
-    backgroundColor: palette.background,
-  },
-  form: {
-    gap: 16,
-    padding: 18,
-  },
-  screenTitle: {
-    color: palette.cyan,
-    fontSize: 26,
-    fontWeight: "900",
-  },
-  helpText: {
-    color: palette.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  field: {
-    gap: 7,
-  },
-  label: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  input: {
-    minHeight: 46,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    color: palette.text,
-    fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  textArea: {
-    minHeight: 180,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  contentInput: {
+    minHeight: 176,
   },
 });

@@ -20,23 +20,23 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: palette.background,
+    padding: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
     color: palette.text,
+    fontSize: 20,
+    fontWeight: "900",
   },
   link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    marginTop: 16,
+    paddingVertical: 16,
   },
   linkText: {
-    fontSize: 14,
     color: palette.purple,
+    fontSize: 14,
     fontWeight: "800",
   },
 });

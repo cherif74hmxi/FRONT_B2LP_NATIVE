@@ -1,12 +1,12 @@
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, ScrollView, Text, View } from "react-native";
 import AppHeader from "@/components/AppHeader";
 import { useAuth } from "@/components/AuthProvider";
 import BilletEditor from "@/components/BilletEditor";
 import { fetchBillet } from "@/components/api";
 import type { Billet } from "@/components/types";
-import { MessageBox, palette } from "@/components/ui";
+import { MessageBox, palette, sharedStyles } from "@/components/ui";
 
 export default function EditBilletScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -48,9 +48,12 @@ export default function EditBilletScreen() {
 
   if (isLoading) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        style={sharedStyles.scroll}
+        contentContainerStyle={sharedStyles.scrollContent}
+      >
         <AppHeader />
-        <View style={styles.stateBlock}>
+        <View style={styles.loadingBlock}>
           <ActivityIndicator color={palette.cyan} />
           <Text style={styles.loadingText}>Chargement du billet...</Text>
         </View>
@@ -60,9 +63,12 @@ export default function EditBilletScreen() {
 
   if (errorMessage || !billet) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        style={sharedStyles.scroll}
+        contentContainerStyle={sharedStyles.scrollContent}
+      >
         <AppHeader />
-        <View style={styles.stateBlock}>
+        <View style={sharedStyles.pageBody}>
           <MessageBox
             message={errorMessage ?? "Billet introuvable."}
             title="Impossible de charger le billet"
@@ -77,14 +83,10 @@ export default function EditBilletScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    backgroundColor: palette.background,
-  },
-  stateBlock: {
+  loadingBlock: {
     alignItems: "center",
     gap: 12,
-    padding: 18,
+    padding: 16,
   },
   loadingText: {
     color: palette.muted,

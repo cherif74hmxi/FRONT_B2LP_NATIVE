@@ -1,12 +1,6 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Billet, Commentaire } from "./types";
 
 export const palette = {
@@ -54,14 +48,14 @@ export function ActionButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: inactive }}
       disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        styles[`${variant}Button`],
-        fullWidth ? styles.fullWidth : undefined,
-        pressed && !inactive ? styles.pressed : undefined,
-        inactive ? styles.disabled : undefined,
+        buttonVariantStyles[variant],
+        fullWidth ? styles.fullWidth : null,
+        { opacity: inactive ? 0.55 : pressed ? 0.72 : 1 },
       ]}
     >
       {loading ? (
@@ -76,7 +70,7 @@ export function ActionButton({
           size={15}
         />
       ) : null}
-      <Text style={[styles.buttonText, styles[`${variant}Text`]]}>
+      <Text style={[styles.buttonText, { color: getButtonTextColor(variant) }]}>
         {label}
       </Text>
     </Pressable>
@@ -90,10 +84,14 @@ type MessageBoxProps = {
 };
 
 export function MessageBox({ title, message, tone = "neutral" }: MessageBoxProps) {
+  const textColor = messageTextColors[tone];
+
   return (
-    <View style={[styles.messageBox, styles[`${tone}Box`]]}>
-      {title ? <Text style={[styles.messageTitle, styles[`${tone}TextBox`]]}>{title}</Text> : null}
-      <Text style={[styles.messageText, styles[`${tone}TextBox`]]}>{message}</Text>
+    <View style={[styles.messageBox, messageBoxStyles[tone]]}>
+      {title ? (
+        <Text style={[styles.messageTitle, { color: textColor }]}>{title}</Text>
+      ) : null}
+      <Text style={[styles.messageText, { color: textColor }]}>{message}</Text>
     </View>
   );
 }
@@ -147,106 +145,163 @@ function getButtonTextColor(variant: ButtonVariant) {
   return palette.purple;
 }
 
+export const sharedStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: palette.background,
+  },
+  scroll: {
+    backgroundColor: palette.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  pageBody: {
+    gap: 16,
+    padding: 16,
+  },
+  card: {
+    gap: 12,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 8,
+    backgroundColor: palette.surface,
+    padding: 16,
+  },
+  smallCard: {
+    gap: 12,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 8,
+    backgroundColor: palette.surface,
+    padding: 14,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  title: {
+    color: palette.cyan,
+    fontSize: 30,
+    fontWeight: "900",
+  },
+  subtitle: {
+    color: palette.muted,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  helperText: {
+    color: palette.muted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  field: {
+    gap: 8,
+  },
+  label: {
+    color: palette.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  input: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 8,
+    backgroundColor: palette.surface,
+    color: palette.text,
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  multilineInput: {
+    minHeight: 128,
+    textAlignVertical: "top",
+  },
+});
+
 const styles = StyleSheet.create({
   button: {
-    minHeight: 42,
+    minHeight: 44,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
     gap: 8,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   fullWidth: {
     width: "100%",
-  },
-  pressed: {
-    opacity: 0.72,
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-  primaryButton: {
-    backgroundColor: palette.purple,
-    borderColor: palette.purple,
-  },
-  secondaryButton: {
-    backgroundColor: palette.purpleSoft,
-    borderColor: palette.purpleSoft,
-  },
-  cyanButton: {
-    backgroundColor: palette.cyanSoft,
-    borderColor: palette.cyanSoft,
-  },
-  dangerButton: {
-    backgroundColor: palette.danger,
-    borderColor: palette.danger,
-  },
-  ghostButton: {
-    backgroundColor: "#eef2f7",
-    borderColor: "#eef2f7",
   },
   buttonText: {
     fontSize: 14,
     fontWeight: "700",
   },
-  primaryText: {
-    color: "#fff",
-  },
-  secondaryText: {
-    color: palette.purple,
-  },
-  cyanText: {
-    color: "#155e75",
-  },
-  dangerText: {
-    color: "#fff",
-  },
-  ghostText: {
-    color: palette.text,
-  },
   messageBox: {
-    borderRadius: 8,
     borderWidth: 1,
+    borderRadius: 8,
     padding: 14,
-  },
-  neutralBox: {
-    backgroundColor: palette.surface,
-    borderColor: palette.border,
-  },
-  errorBox: {
-    backgroundColor: palette.dangerSoft,
-    borderColor: "#fecaca",
-  },
-  successBox: {
-    backgroundColor: palette.successSoft,
-    borderColor: "#bbf7d0",
-  },
-  warningBox: {
-    backgroundColor: palette.warningSoft,
-    borderColor: "#fde68a",
   },
   messageTitle: {
     marginBottom: 4,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
+    lineHeight: 20,
   },
   messageText: {
     fontSize: 14,
     lineHeight: 20,
   },
-  neutralTextBox: {
-    color: palette.text,
+});
+
+const buttonVariantStyles = StyleSheet.create({
+  primary: {
+    borderColor: palette.purple,
+    backgroundColor: palette.purple,
   },
-  errorTextBox: {
-    color: "#991b1b",
+  secondary: {
+    borderColor: palette.purpleSoft,
+    backgroundColor: palette.purpleSoft,
   },
-  successTextBox: {
-    color: palette.success,
+  cyan: {
+    borderColor: palette.cyanSoft,
+    backgroundColor: palette.cyanSoft,
   },
-  warningTextBox: {
-    color: palette.warning,
+  danger: {
+    borderColor: palette.danger,
+    backgroundColor: palette.danger,
+  },
+  ghost: {
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f1f5f9",
   },
 });
+
+const messageBoxStyles = StyleSheet.create({
+  neutral: {
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+  },
+  error: {
+    borderColor: "#fecaca",
+    backgroundColor: palette.dangerSoft,
+  },
+  success: {
+    borderColor: "#bbf7d0",
+    backgroundColor: palette.successSoft,
+  },
+  warning: {
+    borderColor: "#fde68a",
+    backgroundColor: palette.warningSoft,
+  },
+});
+
+const messageTextColors = {
+  neutral: palette.text,
+  error: "#991b1b",
+  success: palette.success,
+  warning: palette.warning,
+};

@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -7,10 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import AppHeader from "@/components/AppHeader";
+import BilletArticle from "@/components/BilletArticle";
+import CommentSection from "@/components/CommentSection";
 import { useAuth } from "@/components/AuthProvider";
 import {
   createCommentaire,
@@ -19,14 +20,7 @@ import {
   fetchBillet,
 } from "@/components/api";
 import type { Billet } from "@/components/types";
-import {
-  ActionButton,
-  MessageBox,
-  formatDate,
-  getBilletAuthorName,
-  getCommentAuthorName,
-  palette,
-} from "@/components/ui";
+import { ActionButton, MessageBox, palette, sharedStyles } from "@/components/ui";
 
 export default function BilletDetailScreen() {
   const router = useRouter();
@@ -46,16 +40,16 @@ export default function BilletDetailScreen() {
 
   const loadBillet = useCallback(
     async (refreshing = false) => {
-      if (!initialized || !billetId) {
+      if (!initialized) {
         return;
       }
 
-      if (refreshing) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
+      if (!isAuthenticated || !billetId) {
+        setIsLoading(false);
+        return;
       }
 
+      refreshing ? setIsRefreshing(true) : setIsLoading(true);
       setErrorMessage(undefined);
 
       try {
@@ -69,7 +63,7 @@ export default function BilletDetailScreen() {
         setIsRefreshing(false);
       }
     },
-    [billetId, initialized, token],
+    [billetId, initialized, isAuthenticated, token],
   );
 
   useFocusEffect(
@@ -77,6 +71,24 @@ export default function BilletDetailScreen() {
       loadBillet();
     }, [loadBillet]),
   );
+
+  useEffect(() => {
+    if (initialized && !isAuthenticated) {
+      router.replace({
+        pathname: "/",
+        params: { authRequired: "1" },
+      });
+    }
+  }, [initialized, isAuthenticated, router]);
+
+  function handleBackToBillets() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  }
 
   function confirmDeleteBillet() {
     if (!token || !billet) {
@@ -94,7 +106,7 @@ export default function BilletDetailScreen() {
 
           try {
             await deleteBillet(token, billet.id);
-            router.replace("/");
+            handleBackToBillets();
           } catch (error) {
             setErrorMessage(
               error instanceof Error ? error.message : "Suppression impossible",
@@ -172,7 +184,8 @@ export default function BilletDetailScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.content}
+      style={sharedStyles.scroll}
+      contentContainerStyle={sharedStyles.scrollContent}
       refreshControl={
         <RefreshControl
           onRefresh={() => loadBillet(true)}
@@ -183,19 +196,24 @@ export default function BilletDetailScreen() {
     >
       <AppHeader />
 
-      <View style={styles.body}>
+      <View style={sharedStyles.pageBody}>
         <ActionButton
           icon="arrow-left"
           label="Retour aux billets"
-          onPress={() => router.push("/")}
+          onPress={handleBackToBillets}
           variant="ghost"
         />
 
         {!initialized || isLoading ? (
-          <View style={styles.loadingBlock}>
+          <View style={styles.loadingCard}>
             <ActivityIndicator color={palette.cyan} />
             <Text style={styles.loadingText}>Chargement du billet...</Text>
           </View>
+        ) : !isAuthenticated ? (
+          <MessageBox
+            message="Retour aux billets..."
+            tone="warning"
+          />
         ) : errorMessage ? (
           <>
             <MessageBox
@@ -212,107 +230,30 @@ export default function BilletDetailScreen() {
           </>
         ) : billet ? (
           <>
-            <View style={styles.article}>
-              <Text style={styles.articleTitle}>{billet.Titre}</Text>
-              <Text style={styles.meta}>
-                Cree le {formatDate(billet.Date)} par {getBilletAuthorName(billet.Auteur)}
-              </Text>
-              <Text style={styles.articleContent}>{billet.Contenu}</Text>
-
-              {isAdmin ? (
-                <View style={styles.adminActions}>
-                  <ActionButton
-                    icon="pencil"
-                    label="Modifier"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/admin/billets/[id]/edit",
-                        params: { id: String(billet.id) },
-                      })
-                    }
-                    variant="cyan"
-                  />
-                  <ActionButton
-                    icon="trash"
-                    label="Supprimer"
-                    loading={isDeletingBillet}
-                    onPress={confirmDeleteBillet}
-                    variant="danger"
-                  />
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.commentsSection}>
-              <Text style={styles.sectionTitle}>Commentaires</Text>
-
-              {billet.Commentaires && billet.Commentaires.length > 0 ? (
-                <View style={styles.commentsList}>
-                  {billet.Commentaires.map((commentaire, index) => (
-                    <View key={commentaire.id || index} style={styles.commentCard}>
-                      <Text style={styles.commentAuthor}>
-                        {getCommentAuthorName(commentaire)}
-                      </Text>
-                      <Text style={styles.commentDate}>
-                        {formatDate(commentaire.Date)}
-                      </Text>
-                      <Text style={styles.commentText}>{commentaire.Contenu}</Text>
-
-                      {isAdmin ? (
-                        <ActionButton
-                          icon="trash"
-                          label="Supprimer le commentaire"
-                          loading={deletingCommentId === commentaire.id}
-                          onPress={() => confirmDeleteComment(commentaire.id)}
-                          variant="danger"
-                        />
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyText}>Aucun commentaire pour ce billet.</Text>
-              )}
-
-              {!initialized ? null : !isAuthenticated ? (
-                <View style={styles.commentForm}>
-                  <MessageBox message="Connectez-vous pour ajouter un commentaire." />
-                  <ActionButton
-                    icon="sign-in"
-                    label="Connexion"
-                    onPress={() => router.push("/login")}
-                    variant="secondary"
-                  />
-                </View>
-              ) : (
-                <View style={styles.commentForm}>
-                  <Text style={styles.label}>Ajouter un commentaire</Text>
-                  <TextInput
-                    multiline
-                    onChangeText={setCommentContent}
-                    placeholder="Votre commentaire"
-                    style={[styles.input, styles.textArea]}
-                    textAlignVertical="top"
-                    value={commentContent}
-                  />
-
-                  {commentError ? (
-                    <MessageBox message={commentError} tone="error" />
-                  ) : null}
-                  {commentSuccess ? (
-                    <MessageBox message={commentSuccess} tone="success" />
-                  ) : null}
-
-                  <ActionButton
-                    disabled={!commentContent.trim()}
-                    icon="send"
-                    label="Publier"
-                    loading={isSubmittingComment}
-                    onPress={handleCreateComment}
-                  />
-                </View>
-              )}
-            </View>
+            <BilletArticle
+              billet={billet}
+              isAdmin={isAdmin}
+              isDeleting={isDeletingBillet}
+              onDelete={confirmDeleteBillet}
+              onEdit={() =>
+                router.navigate({
+                  pathname: "/admin/billets/[id]/edit",
+                  params: { id: String(billet.id) },
+                })
+              }
+            />
+            <CommentSection
+              billet={billet}
+              commentContent={commentContent}
+              commentError={commentError}
+              commentSuccess={commentSuccess}
+              deletingCommentId={deletingCommentId}
+              isAdmin={isAdmin}
+              isSubmittingComment={isSubmittingComment}
+              onChangeComment={setCommentContent}
+              onCreateComment={handleCreateComment}
+              onDeleteComment={confirmDeleteComment}
+            />
           </>
         ) : null}
       </View>
@@ -321,121 +262,17 @@ export default function BilletDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    backgroundColor: palette.background,
-  },
-  body: {
-    gap: 16,
-    padding: 18,
-  },
-  loadingBlock: {
+  loadingCard: {
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    borderWidth: 1,
     borderColor: palette.border,
     borderRadius: 8,
-    borderWidth: 1,
     backgroundColor: palette.surface,
-    padding: 18,
+    padding: 16,
   },
   loadingText: {
     color: palette.muted,
     fontSize: 14,
-  },
-  article: {
-    gap: 14,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    padding: 18,
-  },
-  articleTitle: {
-    color: palette.cyan,
-    fontSize: 28,
-    fontWeight: "900",
-    lineHeight: 34,
-  },
-  meta: {
-    color: palette.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  articleContent: {
-    color: palette.text,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  adminActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    borderTopColor: palette.border,
-    borderTopWidth: 1,
-    paddingTop: 14,
-  },
-  commentsSection: {
-    gap: 14,
-  },
-  sectionTitle: {
-    color: palette.text,
-    fontSize: 23,
-    fontWeight: "900",
-  },
-  commentsList: {
-    gap: 12,
-  },
-  commentCard: {
-    gap: 8,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    padding: 14,
-  },
-  commentAuthor: {
-    color: palette.purple,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  commentDate: {
-    color: palette.muted,
-    fontSize: 12,
-  },
-  commentText: {
-    color: palette.text,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  emptyText: {
-    color: palette.muted,
-    fontSize: 15,
-  },
-  commentForm: {
-    gap: 12,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    padding: 14,
-  },
-  label: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  input: {
-    minHeight: 46,
-    borderColor: palette.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: palette.surface,
-    color: palette.text,
-    fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  textArea: {
-    minHeight: 120,
   },
 });
