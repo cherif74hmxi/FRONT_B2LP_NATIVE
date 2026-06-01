@@ -213,30 +213,17 @@ Authorization: Bearer <token>
 
 ## 8. Gestion des roles
 
-Les droits peuvent etre presentes sous forme de CRUD :
-
-```txt
-C = Create  = creer
-R = Read    = lire
-U = Update  = modifier
-D = Delete  = supprimer
-```
-
-| Role | Table Billets | Table Commentaires |
-| --- | --- | --- |
-| Visiteur | R : lire la liste des billets et leur contenu | Aucun droit |
-| Adherent connecte | R : lire les billets | C/R : ajouter un commentaire et lire les commentaires |
-| Administrateur | C/R/U/D : creer, lire, modifier et supprimer les billets | C/R/D : ajouter, lire et supprimer les commentaires |
-
-En clair :
+Dans cette application mobile, les roles servent surtout a afficher ou masquer
+les actions disponibles dans l'interface.
 
 - un visiteur peut seulement consulter les billets affiches sur l'accueil ;
 - un adherent connecte peut consulter les billets, lire les commentaires et ajouter un commentaire ;
-- un administrateur a le CRUD complet sur les billets ;
-- un administrateur peut aussi creer, lire et supprimer les commentaires, mais pas les modifier.
+- un administrateur peut creer, modifier et supprimer les billets ;
+- un administrateur peut aussi supprimer les commentaires.
 
 Le vrai controle des droits est fait cote API Laravel.
-Le front gere surtout l'affichage et la navigation selon l'utilisateur connecte.
+Le detail CRUD complet est donc plus pertinent dans la documentation de l'API,
+car c'est le backend qui protege reellement les routes et les donnees.
 
 ## 9. Structure principale du projet
 
@@ -265,7 +252,55 @@ components/
   ui.tsx                            Fichier d'export pour les composants UI
 ```
 
-## 10. Diagrammes de sequence
+## 10. Diagrammes
+
+Pour ce depot React Native, les diagrammes les plus utiles sont :
+
+- le diagramme de cas d'utilisation, car il montre ce que chaque role peut faire dans l'application mobile ;
+- les diagrammes de sequence, car ils montrent les echanges entre le mobile, le stockage local et l'API Laravel.
+
+Le diagramme de classes detaille est moins pertinent dans ce depot mobile. Il a
+plus sa place dans la documentation de l'API Laravel, car les entites metier
+comme `Utilisateur`, `Billet` et `Commentaire` sont gerees par le backend. Cote
+mobile, elles sont seulement representees par des types TypeScript dans
+`components/types.ts`.
+
+### Diagramme de cas d'utilisation
+
+```mermaid
+flowchart LR
+    Visiteur([Visiteur])
+    Adherent([Adherent connecte])
+    Admin([Administrateur])
+
+    UC1[Consulter les billets]
+    UC2[Lire les commentaires]
+    UC3[Ajouter un commentaire]
+    UC4[Creer un billet]
+    UC5[Modifier un billet]
+    UC6[Supprimer un billet]
+    UC7[Supprimer un commentaire]
+    UC8[Se connecter]
+    UC9[S'inscrire]
+
+    Visiteur --> UC1
+    Visiteur --> UC8
+    Visiteur --> UC9
+
+    Adherent --> UC1
+    Adherent --> UC2
+    Adherent --> UC3
+
+    Admin --> UC1
+    Admin --> UC2
+    Admin --> UC3
+    Admin --> UC4
+    Admin --> UC5
+    Admin --> UC6
+    Admin --> UC7
+```
+
+### Diagrammes de sequence
 
 ### Consultation des billets par un visiteur
 
