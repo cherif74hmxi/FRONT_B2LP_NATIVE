@@ -114,9 +114,10 @@ une application installable, il faut generer un fichier de build.
 
 ### Android
 
-Sur Android, on peut generer une APK installable.
+Sur Android, on peut generer une APK installable. Le fichier `eas.json` du
+projet contient deja un profil `preview` configure pour produire une APK.
 
-Exemple avec EAS Build :
+Etapes a suivre :
 
 ```bash
 npm install -g eas-cli
@@ -125,7 +126,7 @@ eas build:configure
 eas build --platform android --profile preview
 ```
 
-Exemple de configuration `eas.json` pour obtenir une APK :
+Le profil utilise dans `eas.json` est le suivant :
 
 ```json
 {
@@ -140,9 +141,16 @@ Exemple de configuration `eas.json` pour obtenir une APK :
 }
 ```
 
-Apres la build, Expo fournit un lien de telechargement. Sur Android, il est
-possible de telecharger le fichier `.apk`, puis de l'installer sur le telephone
-apres confirmation de securite.
+Apres la build :
+
+- Expo fournit un lien de telechargement ;
+- ouvrir ce lien sur le telephone Android ;
+- telecharger le fichier `.apk` ;
+- accepter l'installation depuis cette source si Android le demande ;
+- installer l'application.
+
+Cette methode permet d'avoir une vraie application installee sur Android, sans
+passer par Expo Go.
 
 ### iPhone
 
@@ -205,27 +213,27 @@ Authorization: Bearer <token>
 
 ## 8. Gestion des roles
 
-Visiteur :
+Les droits peuvent etre presentes sous forme de CRUD :
 
-- peut voir la liste des billets ;
-- peut lire le titre et le contenu des billets ;
-- ne peut pas lire les commentaires ;
-- ne peut pas commenter ;
-- ne peut pas administrer les billets.
+```txt
+C = Create  = creer
+R = Read    = lire
+U = Update  = modifier
+D = Delete  = supprimer
+```
 
-Adherent connecte :
+| Role | Table Billets | Table Commentaires |
+| --- | --- | --- |
+| Visiteur | R : lire la liste des billets et leur contenu | Aucun droit |
+| Adherent connecte | R : lire les billets | C/R : ajouter un commentaire et lire les commentaires |
+| Administrateur | C/R/U/D : creer, lire, modifier et supprimer les billets | C/R/D : ajouter, lire et supprimer les commentaires |
 
-- peut voir les billets ;
-- peut lire les commentaires ;
-- peut ajouter un commentaire.
+En clair :
 
-Administrateur :
-
-- peut voir les billets ;
-- peut lire les commentaires ;
-- peut ajouter un commentaire ;
-- peut creer, modifier et supprimer des billets ;
-- peut supprimer des commentaires.
+- un visiteur peut seulement consulter les billets affiches sur l'accueil ;
+- un adherent connecte peut consulter les billets, lire les commentaires et ajouter un commentaire ;
+- un administrateur a le CRUD complet sur les billets ;
+- un administrateur peut aussi creer, lire et supprimer les commentaires, mais pas les modifier.
 
 Le vrai controle des droits est fait cote API Laravel.
 Le front gere surtout l'affichage et la navigation selon l'utilisateur connecte.
@@ -246,11 +254,15 @@ components/
   api.ts                            Appels vers l'API Laravel
   AuthProvider.tsx                  Gestion de la session utilisateur
   AppHeader.tsx                     En-tete de l'application
+  ActionButton.tsx                  Bouton reutilisable
   BilletArticle.tsx                 Affichage d'un billet
   BilletEditor.tsx                  Formulaire de creation/modification
   CommentSection.tsx                Affichage et ajout des commentaires
+  MessageBox.tsx                    Message d'information, erreur ou succes
+  formatters.ts                     Formatage des dates et des noms
+  theme.ts                          Couleurs et styles communs
   types.ts                          Types TypeScript
-  ui.tsx                            Couleurs, boutons et styles communs
+  ui.tsx                            Fichier d'export pour les composants UI
 ```
 
 ## 10. Diagrammes de sequence
@@ -413,22 +425,7 @@ PATCH  /api/billets/{billet}
 DELETE /api/billets/{billet}
 ```
 
-## 12. Points importants React Native
-
-React Native ressemble a React, mais il y a quelques differences importantes :
-
-- pas de balises HTML comme `div`, `p` ou `img` ;
-- on utilise `View`, `Text`, `Image`, `TextInput`, `Pressable` ;
-- le style se fait avec des objets JavaScript, souvent avec `StyleSheet.create()` ;
-- il n'y a pas de DOM ni de navigateur classique ;
-- pour stocker une session, on utilise `AsyncStorage` au lieu de `localStorage` ;
-- la navigation est geree ici par Expo Router ;
-- pour tester sur telephone, on utilise Expo Go et un serveur Expo ;
-- certains comportements changent entre iOS, Android et web ;
-- les images locales doivent etre importees avec `require()` ;
-- les appels API avec Axios fonctionnent comme dans React web.
-
-## 13. Tests et verification
+## 12. Tests et verification
 
 Avant de rendre ou presenter le projet, lancer :
 
@@ -449,7 +446,7 @@ Pour verifier que le bundle Android se construit :
 npx expo export --platform android
 ```
 
-## 14. Lien avec le webservice
+## 13. Lien avec le webservice
 
 Le front mobile depend du webservice Laravel `API_B2LP`.
 
